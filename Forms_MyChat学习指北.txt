@@ -1,0 +1,228 @@
+这是使用WinForms实现TCP通信工具的学习过程
+    首先，项目要求有
+    1.拥有服务端和客户端
+    2.两个客户端之间实时通信和传输附件
+    3.消息以加密方式传输
+    4.持久化聊天记录
+    5.客户端有用户界面，服务器是一个控制台程序
+        下面用WinForms做的这个Tcp通信是服务器和客户端都是有着用户界面的，这是和项目要求最后一条相违背的，既然做好了也没必要改了，在下一个用WPF做的网络通信工具项目里，其实用控制台程序写服务器而且只让两个客户端通信是比较轻松的，如果多个客户端通信，网上很多做法是用一个集合，来保存所有客户端的IP/PORT，两个客户端可用简单的大小为2的数组来保存，数组中有空位就代表才一个客户端，不能通信（已采用多个客户端，使用SQLServer添加注册密码功能，对ID建立本地聊天文件）
+
+那么，开始回顾我疯狂百度的网上冲浪之旅
+
+第一，解决客户端和服务器
+一般在服务器代码和客户端代码写好之前，用户界面就随自己审美弄好了（随便弄弄），那么，我们都知道，TCP需要先启动服务器，再运行客户端，一般也是先写服务器代码
+像我有过一些网络编程经验的来说，TCP协议能理解，所以我使用C#来实现TCP的时候，总的也是1.初始化套接字 2.绑定 3.监听 4.连接 5.发送和接收 6.关闭 步骤，同时我将服务器基础内容封装在业务逻辑类库中.
+1.要初始化套接字，知道一个服务器的ip 和 port就可以了，而我的做法是从界面输入，
+    tcpServer.InitSocket(IPAddress.Parse(textIp.Text),int.Parse(textPort.Text));
+        用两个TextBox保存数据
+        还有可以尝试用try检查数据的输入，catch报告
+        catch (Exception ex)
+            {
+                textNetStat.Text += string.Format(netstatInt + ": 服务器监听失败！原因：无效的Ip或Port \r\n");
+        }	这里可以报告ex.message，也可以不用string.format格式组合字符串
+2.绑定，也就是绑定ip和port，和监听合并
+3.监听，这类所有功能应该是都用都用函数封装的
+    Listener = new TcpListener(IpAddress, Port);
+    Listener.Start();   //监听客户端,初始化5个信号量
+4.连接，普遍做法是对每个在监听后属于已连接队列中的客户端创建一个线程并启动，每个线程都去执行GetAcceptTcpClient()函数，如果不这么做，也普遍会得到 该对象被其他线程占用 中断
+		//维护处理客户端队列
+        Socket socket = tcpClient.Client;
+     	NetworkStream stream = new NetworkStream(socket, true);
+     	Sockets sks = new Sockets(tcpClient.Client.RemoteEndPoint 
+            as IPEndPoint, tcpClient, stream);  //增加客户端
+        sks.NewClientFlag = true;	
+    注意，tcpClient.Client.RemoteEndPoint可以转换成IPEndPoint，也就是，我们通过当前客户端的RemoteEndPoint得到它的IP和port，这可以知道它是哪个客户端
+    普遍的，有新客户端连接之后，应该有交互信息，连接成功之后客户端和服务器都应该知道
+            //连接成功后主动向客户端发送一条消息  
+                if (stream.CanWrite)
+                {
+                    byte[] buffer = Encoding.UTF8.GetBytes(this.InitMsg);
+                    stream.Write(buffer, 0, buffer.Length); //客户端netstat
+                }
+        以上程序，我们传输时的数据应该为BYTES类型数组，在C语言实现网络传输时会使用网络字节序来传输数据，网络字节序是大端存储的，在C#需要Encoding.UTF-8来转换byte和string,如果不那么做，传输之后我得到的都是数组名。。。
+到这里就已经连接成功了，在这里有一个较复杂的逻辑部分，因为我们需要很符合逻辑的交互信息，客户端的成功连接应该告诉服务器和其他的所有客户端，然后它下线了又要更新一次所有的客户端和服务器，还得让之后的客户端连上来它的客户端列表里没有已下线的客户端，还有客户端跟客户端通信，下面会有一些解释
+	Sockets.ClientDispose		这是客户端退出标志
+	Sockets.NewClientFlag			客户端上线标志
+在每个客户端的线程当中用if语句就可以判断自己当前的上线下线情况
+
+
+第二，数据及文件的发送和接收
+在客户端连接的线程中，就会收到数据，那哪种情况会是收到数据呢？
+首先，排除没有异常，Sockets.ex == null，然后还有可能是客户端上线信息（客户端下线信息属于异常），还有可能收到个空气，剩下的就是收到的数据了
+		Sockets.Offset  收到数据的大小标志
+根据项目要求我把服务器收到的数据分为了三种，前两种合起来是文件，先要接收到文件的名字，因为我们需要先创建文件，才能存放数据，先知道文件大小，才能完整存放数据
+1，那收到的第一个字节来判断，如果是2，我收到的是2文件名-文件大小
+	string fileNameWithLength = Encoding.UTF8.GetString(buffer, 1, sks.Offset - 1);
+     //把文件名和文件长度截取
+    recStr = fileNameWithLength.Split('-').First();
+  	fileLength = Convert.ToInt64(fileNameWithLength.Split('-').Last());
+	textChat.Text += DateTime.Now.ToString() + ": 你开始接收文件. "
+           + recStr + " 文件大小为：" + fileLength + "\r\n";
+
+2，收到的是1文件内容
+	//接收到的文件大小（0） 小于 文件大小
+    while (recFileLength < fileLength)
+    {
+         if (firstWrite)
+     	{
+			fs.Write(buffer, 1, sks.Offset - 1);    //跳过标志符1
+			fs.Flush();     //冲洗缓冲区
+			recFileLength += sks.Offset - 1;    //接收到的文件大小
+			firstWrite = false;
+        }
+        else
+        {
+			//循环写剩下的文件内容
+			fs.Write(buffer, 0, sks.Offset);
+			fs.Flush();
+			recFileLength += sks.Offset;
+		}
+	}
+
+3，剩下的，我收到的是消息（发的消息里面就不要用1跟2开头了）
+	收到消息后在文本框显示（也可以记录至日志或聊天记录）
+	textChat.Text += string.Format("{0}客户端{1}发来消息：{2} \r\n",
+                                DateTime.Now.ToString(), sks.Ip, recStr);
+            在sks线程，它自身的ip/port封装在业务逻辑的类库中，界面逻辑即可轻松得到足够多的基础信息，我们应该对代码实现功能分隔
+
+然后客户端数据接收的标志位更多，这也跟服务器的数据发送有关，总的大致逻辑没有变化，但是服务器多了要告诉客户端，哪个客户端连接了，哪个客户端又下线了
+服务器发送数据我分为
+1，按键发送一条消息	没有标志位直接发送
+
+2，按键发送附件	先发送	"2文件名-文件长度"
+	long fileLength = new FileInfo(filePath).Length;
+    string totalMsg = string.Format("{0}-{1}", fileName.Text, fileLength);
+    ServerSend(totalMsg, 2);    //标志符2 文件名和长度已经发过去了
+    			然后发送		"1文件内容"
+    	using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+    		//从流中读出数据放入缓冲区，满足读出数据大于0 和 满足发送数据长度小于文件长度
+               while ((readLength = fs.Read(buffer, 0, buffer.Length)) > 0 && sentFileLength < fileLength)
+               		//第一次发送的时候带上标志符1
+    	循环发送完毕后，关闭文件流
+    	通常，我们需要记录日志信息或者聊天记录
+
+3，当一个新客户端上线时，告诉其他客户端，它也需要知道所有在线的客户端
+	第一步，需要记录下所有客户端的基础信息，也就是IP/PORT（也可以是ID）
+		我在服务器定义的时候，就告诉所有人，我的服务器只能连接5个客户端，那么我在初始化处定义两个数组来保存 当前在线客户端 和 上线又下线了的客户端
+	第二步，在客户端上线的地方，循环通知其他客户端，新客户端上线了
+	第三步，对当前客户端添加上当前在线的其他客户端
+		tcpServer.SendToClient(iP[i], "3user" + id);
+		//对数组中地址发送	"3user[IP/PORT（也可以是ID）]"
+
+4.	当一个客户端下线时，告诉其他客户端，还要退出当前在线客户端的数组
+	第一步，对当前在线的客户端数组（自己已经退出了）
+		tcpServer.SendToClient(iP[j], "4user" + id);
+			标志位	"4user[IP/PORT（也可以是ID）]"
+	第二步，把当前客户端基础信息加入到 上线又下线了的客户端 数组中
+		（这个数组可以没有多余操作）
+
+出于时间因素，对于数据发送接收部分的逻辑代码大作删减
+	listBox.Items.Remove("user" + i);	//客户端/服务器下拉列表的删除
+	listBox.Items.Add("user" + sendInt);	//增加
+
+第三，服务器实现消息和文件的加密
+1.采用DES加密字符串
+	对客户端和服务器设置相同的密钥向量，然后使用加密EncryptDES函数和解密DecryptDES函数，实现对输入一个字符串和密钥向量，返回加密或解密的字符串
+		private static byte[] Keys = { 0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF };	//加密密钥,要求为8位
+	//加密成功返回加密后的字符串，失败返回源串
+	public static string EncryptDES(string encryptString, string encryptKey)
+        {
+            try
+            {
+                byte[] rgbKey = Encoding.UTF8.GetBytes(encryptKey.Substring(0, 8));
+                byte[] rgbIV = Keys;
+                byte[] inputByteArray = Encoding.UTF8.GetBytes(encryptString);
+                DESCryptoServiceProvider dCSP = new DESCryptoServiceProvider();
+                MemoryStream mStream = new MemoryStream();
+                CryptoStream cStream = new CryptoStream(mStream, dCSP.CreateEncryptor(rgbKey, rgbIV), CryptoStreamMode.Write);
+                cStream.Write(inputByteArray, 0, inputByteArray.Length);
+                cStream.FlushFinalBlock();
+                return Convert.ToBase64String(mStream.ToArray());
+            }
+            catch
+            {
+                return encryptString;
+            }
+        }
+    发送消息：
+		string dataEncrypt = EncryptDES(textMessage.Text, Encoding.UTF8.GetString(Keys));
+        tcpServer.SendToAll(dataEncrypt); 
+
+2.采用DES加密文件流（文件名和文件大小采用加密字符串）
+	文件流需要秘钥desKey和desIv向量一起使用加密，它们的要求都是8个数组的字节数组，如desKey=12345678转成字节数组
+	private static void EncryptData(String inName, String outName, byte[] desKey, byte[] desIV)
+        {
+            //创建文件流来处理输入和输出文件
+            FileStream fin = new FileStream(inName, FileMode.Open, FileAccess.Read);
+            FileStream fout = new FileStream(outName, FileMode.OpenOrCreate, FileAccess.Write);
+            fout.SetLength(0);
+
+            //创建变量来帮助读写
+            byte[] bin = new byte[100];     //用于加密的中间存储
+            long rdlen = 0;                 //写入的字节总数
+            long totlen = fin.Length;       //输入文件的总长度
+            int len;                        //一次写入的字节数
+
+            DES des = new DESCryptoServiceProvider();
+            CryptoStream encStream = new CryptoStream(fout, des.CreateEncryptor(desKey, desIV), CryptoStreamMode.Write);
+
+            //读取输入文件，然后加密并写入输出文件 
+            while (rdlen < totlen)
+            {
+                len = fin.Read(bin, 0, 100);
+                encStream.Write(bin, 0, len);
+                rdlen = rdlen + len;
+            }
+
+            encStream.Close();
+            fout.Close();
+            fin.Close();
+        }
+    服务器和客户端的加密是一样，这应该是最简单的加密了
+
+第四步，客户端上本地化保存持久聊天记录
+	客户端的界面逻辑，数据访问可参照服务器完成设计，业务逻辑当中的基础信息可参照如下：
+	服务器绑定监听步骤客户端为连接服务器
+		client.Connect(ip);
+        nStream = new NetworkStream(client.Client, true);
+        sk = new Sockets(ip, client, nStream);
+        sk.nStream.BeginRead(sk.RecBuffer, 0, sk.RecBuffer.Length, 
+            new AsyncCallback(EndReader), sk);
+    在业务逻辑中还可封装发送数据函数
+    	if (client == null || !client.Connected)
+        {
+            Sockets sks = new Sockets();
+            sks.ex = new Exception("客户端无连接..");
+            sks.ClientDispose = true;
+            pushSockets.Invoke(sks);	//推送至netstat  
+        }
+        if (client.Connected) //如果连接则发送  
+        {
+            if (nStream == null)
+            {
+                nStream = client.GetStream();
+            }
+            byte[] buffer = Encoding.UTF8.GetBytes(SendData);
+            nStream.Write(buffer, 0, buffer.Length);
+        }
+    异步处理：
+    Sockets s = ir.AsyncState as Sockets;
+    try
+    {
+        if (s != null)
+        {
+
+            if (IsClose && client == null)
+            {
+                sk.nStream.Close();
+                sk.nStream.Dispose();
+                return;
+            }
+            s.Offset = s.nStream.EndRead(ir);
+            pushSockets.Invoke(s);//推送至netstat  
+            sk.nStream.BeginRead(sk.RecBuffer, 0, sk.RecBuffer.Length, new AsyncCallback(EndReader), sk);
+        }
+    }
+    实现业务逻辑后，在界面逻辑上还有一个按钮，可以查看聊天记录，还可以调用MyNote项目来显示文本，这里采用一个自定义窗体来专门显示文本
+
+    每次点击按钮，应把当前聊天信息发送至自定义窗体，自定义窗体被打开就加载之前的聊天记录文档，并把主窗体发送过来的消息加在下面，并重新保存聊天记录文档.

@@ -1,0 +1,6 @@
+这是一个通过WinForms完成的TCP通讯工具
+1.怎么打开这个项目？
+    打开Forms_TcpClinet文件夹，使用VS的较高版本打开解决方案文件Forms_MyChat.sln（.NET framework4.0版本，因为第一个项目是Forms_TcpClinet，解决方案也在Forms_TcpClinet文件夹下面，其余两个项目是在Forms_TcpClinet解决方案下添加的）
+
+2.项目有什么功能？
+    它客户端和服务器都有界面程序（在WPF的项目中把服务器修改成控制台程序），可以实现客户端和服务器消息及文件传输（项目中设置了选择文件的默认地址，如果编译需要修改），较简单的对消息DES加密和聊天记录查看

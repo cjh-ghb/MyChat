@@ -1,0 +1,10 @@
+F:\VisualStudio2019\proj\socketDll\bin\Debug\socketDll.dll
+F:\VisualStudio2019\proj\socketDll\bin\Debug\socketDll.pdb
+F:\VisualStudio2019\proj\socketDll\obj\Debug\socketDll.dll
+F:\VisualStudio2019\proj\socketDll\obj\Debug\socketDll.pdb
+F:\VisualStudio2019\proj\socketDll\obj\Debug\socketDll.csprojAssemblyReference.cache
+F:\VisualStudio2019\Forms_MyNote\MyChat\socketDll\bin\Debug\socketDll.dll
+F:\VisualStudio2019\Forms_MyNote\MyChat\socketDll\bin\Debug\socketDll.pdb
+F:\VisualStudio2019\Forms_MyNote\MyChat\socketDll\obj\Debug\socketDll.csprojAssemblyReference.cache
+F:\VisualStudio2019\Forms_MyNote\MyChat\socketDll\obj\Debug\socketDll.dll
+F:\VisualStudio2019\Forms_MyNote\MyChat\socketDll\obj\Debug\socketDll.pdb

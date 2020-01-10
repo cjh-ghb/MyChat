@@ -1,0 +1,16 @@
+F:\VisualStudio2019\proj\Forms_TcpServer\bin\Debug\Forms_TcpServer.exe.config
+F:\VisualStudio2019\proj\Forms_TcpServer\bin\Debug\Forms_TcpServer.exe
+F:\VisualStudio2019\proj\Forms_TcpServer\bin\Debug\Forms_TcpServer.pdb
+F:\VisualStudio2019\proj\Forms_TcpServer\obj\Debug\Forms_TcpServer.csprojAssemblyReference.cache
+F:\VisualStudio2019\proj\Forms_TcpServer\obj\Debug\Forms_TcpServer.Form1.resources
+F:\VisualStudio2019\proj\Forms_TcpServer\obj\Debug\Forms_TcpServer.Properties.Resources.resources
+F:\VisualStudio2019\proj\Forms_TcpServer\obj\Debug\Forms_TcpServer.csproj.GenerateResource.cache
+F:\VisualStudio2019\proj\Forms_TcpServer\obj\Debug\Forms_TcpServer.exe
+F:\VisualStudio2019\proj\Forms_TcpServer\obj\Debug\Forms_TcpServer.pdb
+F:\VisualStudio2019\proj\Forms_TcpServer\bin\Debug\socketDll.dll
+F:\VisualStudio2019\proj\Forms_TcpServer\bin\Debug\socketDll.pdb
+F:\VisualStudio2019\proj\Forms_TcpServer\obj\Debug\Forms_TcpServer.csproj.CopyComplete
+F:\VisualStudio2019\proj\Forms_TcpServer\bin\Debug\Forms_TcpServer.exe.manifest
+F:\VisualStudio2019\proj\Forms_TcpServer\bin\Debug\Forms_TcpServer.application
+F:\VisualStudio2019\proj\Forms_TcpServer\obj\Debug\Forms_TcpServer.exe.manifest
+F:\VisualStudio2019\proj\Forms_TcpServer\obj\Debug\Forms_TcpServer.application
